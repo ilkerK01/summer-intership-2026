@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oyun Satış Başarısı Tahminleme</title>
+<style>
+
+:root{
+  --cream:#F2EEE4;      --cream-2:#EAE5D8;
+  --card:#FFFFFF;
+  --ink:#0E0E0C;        --ink-2:#3A3A34;      --muted:#78766C;
+  --line:#DFD9CA;
+  --lime:#DCEE3D;       --lime-dk:#C6D82C;    --lime-soft:#F0F7C4;
+
+  --s0:#8E8B80;  --s1:#3B7DD8;  --s2:#7B5BE0;  --s3:#E8622E;
+
+  --r-sm:10px;  --r-md:16px;  --r-lg:26px;  --r-pill:999px;
+  --sp-1:8px; --sp-2:16px; --sp-3:24px; --sp-4:32px; --sp-5:48px; --sp-6:72px;
+  --shadow:0 1px 2px rgba(20,18,10,.04), 0 8px 28px rgba(20,18,10,.05);
+  --ease:cubic-bezier(.32,.72,.28,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+  background:var(--cream); color:var(--ink);
+  font-size:16px; line-height:1.55; padding:0 20px 96px;
+}
+.wrap{max-width:1180px;margin:0 auto}
+
+.display{font-weight:900;letter-spacing:-.035em;line-height:.94;
+  font-size:clamp(2.2rem,5.4vw,4.15rem)}
+.eyebrow{font-size:.7rem;font-weight:700;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted)}
+h2.sec{font-weight:900;letter-spacing:-.03em;line-height:1;
+  font-size:clamp(1.6rem,3.2vw,2.6rem)}
+h3.card-t{font-size:1.32rem;font-weight:800;letter-spacing:-.02em}
+.lede{color:var(--ink-2);font-size:1.02rem;max-width:56ch}
+.small{font-size:.82rem;color:var(--muted)}
+.tnum{font-variant-numeric:tabular-nums}
+
+header.top{display:flex;flex-wrap:wrap;gap:var(--sp-2);align-items:center;
+  justify-content:space-between;padding:var(--sp-4) 0 var(--sp-3)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em}
+.brand .mark{width:30px;height:30px;border-radius:9px;background:var(--ink);
+  display:grid;place-items:center;flex-shrink:0}
+.brand .mark svg{width:18px;height:18px;stroke:var(--lime)}
+
+.tabs{display:inline-flex;gap:2px;background:var(--cream-2);
+  border:1px solid var(--line);border-radius:var(--r-pill);padding:4px}
+.tabs button{border:none;background:none;cursor:pointer;font:inherit;
+  font-size:.74rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-2);padding:9px 17px;border-radius:var(--r-pill);
+  transition:background .2s var(--ease),color .2s var(--ease);min-height:38px}
+.tabs button:hover{color:var(--ink)}
+.tabs button[aria-selected="true"]{background:var(--card);color:var(--ink);
+  box-shadow:var(--shadow)}
+.tabs button:focus-visible,button:focus-visible,input:focus-visible,
+select:focus-visible,summary:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+
+#statusBar{position:fixed;left:0;right:0;top:0;height:3px;z-index:90;overflow:hidden}
+#statusBar.on::after{content:"";position:absolute;inset:0;width:40%;
+  background:linear-gradient(90deg,transparent,var(--ink),transparent);
+  animation:slide 1.05s infinite var(--ease)}
+@keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(350%)}}
+
+.chip{display:inline-flex;align-items:center;gap:8px;font-size:.76rem;
+  font-weight:600;background:var(--card);border:1px solid var(--line);
+  padding:7px 14px;border-radius:var(--r-pill);color:var(--ink-2)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.dot.ok{background:#2FA36B}
+.dot.bad{background:#D2452F}
+.dot.busy{background:var(--ink);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+.hero{padding:var(--sp-3) 0 var(--sp-5);max-width:58ch}
+.hero .lede{margin-top:var(--sp-2)}
+
+.card{background:var(--card);border-radius:var(--r-lg);padding:var(--sp-4);
+  box-shadow:var(--shadow)}
+.grid-main{display:grid;grid-template-columns:minmax(0,430px) minmax(0,1fr);
+  gap:var(--sp-3);align-items:start}
+@media(max-width:940px){.grid-main{grid-template-columns:1fr}}
+
+.field{margin-top:var(--sp-3)}
+.field:first-of-type{margin-top:0}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2);
+  margin-top:var(--sp-3)}
+@media(max-width:420px){.field-row{grid-template-columns:1fr}}
+label{display:block;font-size:.78rem;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink-2);margin-bottom:7px}
+label .opt{text-transform:none;letter-spacing:0;font-weight:500;color:var(--muted)}
+input,select{width:100%;font:inherit;font-size:1rem;color:var(--ink);
+  background:var(--cream);border:1.5px solid var(--line);
+  border-radius:var(--r-sm);padding:13px 14px;min-height:48px;
+  transition:border-color .18s var(--ease),background .18s var(--ease)}
+input::placeholder{color:#A5A296}
+input:hover,select:hover{border-color:#C9C2AF}
+input:focus,select:focus{border-color:var(--ink);background:var(--card);outline:none}
+input[type=number]{text-align:center;font-weight:700}
+input[aria-invalid="true"]{background:#FDF3F1;border-color:#D2452F}
+select{appearance:none;cursor:pointer;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230E0E0C' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 13px center;background-size:17px;
+  padding-right:40px}
+.helper{font-size:.8rem;color:var(--muted);margin-top:8px;line-height:1.45}
+.helper b{color:var(--ink);font-weight:700}
+.infobox{margin-top:10px;background:var(--lime-soft);border:1px solid #DCE8A8;
+  border-radius:var(--r-sm);padding:12px 14px;font-size:.83rem;line-height:1.5}
+.infobox .t{font-weight:800;letter-spacing:-.01em;font-size:.92rem;display:block;
+  margin-bottom:3px}
+.infobox .meta{color:var(--ink-2)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  width:100%;font:inherit;font-size:.78rem;font-weight:800;letter-spacing:.11em;
+  text-transform:uppercase;padding:16px 24px;min-height:52px;border:none;
+  border-radius:var(--r-pill);background:var(--lime);color:var(--ink);cursor:pointer;
+  transition:transform .14s var(--ease),background .18s var(--ease),box-shadow .18s var(--ease);
+  margin-top:var(--sp-3)}
+.btn:hover:not(:disabled){background:var(--lime-dk);box-shadow:0 6px 18px rgba(198,216,44,.4)}
+.btn:active:not(:disabled){transform:scale(.985)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.dark{background:var(--ink);color:var(--cream)}
+.btn.dark:hover:not(:disabled){background:#26251F;box-shadow:0 6px 18px rgba(14,14,12,.24)}
+.spin{width:14px;height:14px;border:2px solid rgba(14,14,12,.25);
+  border-top-color:var(--ink);border-radius:50%;animation:sp .7s linear infinite;
+  flex-shrink:0}
+.btn.dark .spin{border-color:rgba(242,238,228,.3);border-top-color:var(--cream)}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.result-head{display:flex;flex-wrap:wrap;gap:var(--sp-2);align-items:flex-start;
+  justify-content:space-between}
+.bignum{font-weight:900;letter-spacing:-.045em;line-height:.9;
+  font-size:clamp(2.6rem,6.5vw,4.4rem)}
+.bignum .u{font-size:.85rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-2);margin-left:10px}
+.badge{padding:11px 22px;border-radius:var(--r-pill);font-weight:800;font-size:1rem;
+  letter-spacing:-.01em;color:#fff;white-space:nowrap}
+.badge[data-seg="0"]{background:var(--s0)}.badge[data-seg="1"]{background:var(--s1)}
+.badge[data-seg="2"]{background:var(--s2)}.badge[data-seg="3"]{background:var(--s3)}
+
+.bars{margin-top:var(--sp-4)}
+.bar{display:grid;grid-template-columns:110px 1fr 58px;align-items:center;
+  gap:13px;margin-bottom:11px;font-size:.87rem}
+.bar .nm{font-weight:600}
+.bar.win .nm{font-weight:800}
+.track{display:block;height:10px;background:var(--cream-2);
+  border-radius:var(--r-pill);overflow:hidden}
+.fill{display:block;height:100%;border-radius:var(--r-pill);width:0;
+  transition:width .65s var(--ease)}
+.bar .pct{text-align:right;color:var(--muted)}
+.bar.win .pct{color:var(--ink);font-weight:800}
+
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));
+  gap:12px;margin-top:var(--sp-3)}
+.stat{background:var(--cream);border-radius:var(--r-md);padding:15px 17px}
+.stat .k{font-size:.67rem;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted)}
+.stat .v{font-size:1.12rem;font-weight:800;margin-top:5px;letter-spacing:-.02em}
+
+.drv{display:flex;align-items:center;gap:13px;padding:12px 0;
+  border-bottom:1px solid var(--line);font-size:.88rem}
+.drv:last-child{border-bottom:none}
+.drv .nm{color:var(--muted);width:140px;flex-shrink:0;font-size:.78rem;
+  font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+.drv .vl{flex:1;font-weight:600}
+.drv .ef{font-weight:800;display:flex;align-items:center;gap:5px}
+.drv .ef svg{width:14px;height:14px}
+.up{color:#1E7A4F}.down{color:#C0392B}
+
+.note{display:flex;gap:9px;background:var(--cream);border-left:3px solid var(--lime-dk);
+  border-radius:var(--r-sm);padding:11px 14px;font-size:.82rem;color:var(--ink-2);
+  margin-top:9px;line-height:1.45}
+.note svg{width:15px;height:15px;stroke:var(--ink-2);flex-shrink:0;margin-top:2px}
+
+.empty{text-align:center;padding:var(--sp-6) var(--sp-3);color:var(--muted)}
+.empty svg{width:46px;height:46px;stroke:var(--line);stroke-width:1.5;
+  margin-bottom:var(--sp-2)}
+.empty p{max-width:38ch;margin:0 auto;font-size:.92rem}
+.skel{background:linear-gradient(90deg,var(--cream) 25%,var(--cream-2) 37%,var(--cream) 63%);
+  background-size:400% 100%;animation:shim 1.3s infinite linear;border-radius:var(--r-sm)}
+@keyframes shim{from{background-position:100% 0}to{background-position:-100% 0}}
+.skel-row{height:15px;margin-bottom:11px}
+
+.tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:.88rem;min-width:460px}
+th,td{text-align:left;padding:12px 13px;border-bottom:1px solid var(--line)}
+th{font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:last-child td{border-bottom:none}
+.pill-s{display:inline-block;padding:4px 12px;border-radius:var(--r-pill);
+  font-size:.75rem;color:#fff;font-weight:700}
+.pill-s[data-seg="0"]{background:var(--s0)}.pill-s[data-seg="1"]{background:var(--s1)}
+.pill-s[data-seg="2"]{background:var(--s2)}.pill-s[data-seg="3"]{background:var(--s3)}
+
+.metrics-head{text-align:center;max-width:62ch;margin:0 auto var(--sp-4)}
+.metrics-head .lede{margin:var(--sp-2) auto 0}
+.tabs-center{display:flex;justify-content:center;margin-bottom:var(--sp-4)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+  gap:var(--sp-2);margin-bottom:var(--sp-3)}
+.kpi{background:var(--card);border-radius:var(--r-lg);padding:var(--sp-3);
+  text-align:center;box-shadow:var(--shadow)}
+.kpi.hl{background:var(--lime)}
+.kpi .v{font-weight:900;letter-spacing:-.04em;font-size:clamp(1.8rem,4vw,2.7rem);
+  line-height:1;font-variant-numeric:tabular-nums}
+.kpi .k{font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);margin-top:10px}
+.kpi.hl .k{color:var(--ink-2)}
+.kpi .sub{font-size:.76rem;color:var(--muted);margin-top:6px}
+.kpi.hl .sub{color:var(--ink-2)}
+.cm-diag{background:var(--lime-soft);font-weight:800}
+.guarantee{display:flex;gap:11px;align-items:flex-start;background:var(--cream);
+  border-radius:var(--r-md);padding:15px 17px;font-size:.85rem;line-height:1.5;
+  color:var(--ink-2)}
+.guarantee svg{width:19px;height:19px;stroke:var(--ink);flex-shrink:0;margin-top:1px}
+.guarantee b{color:var(--ink)}
+
+.chartbox{background:var(--card);border-radius:var(--r-lg);padding:var(--sp-4);
+  box-shadow:var(--shadow)}
+svg.chart{width:100%;height:auto;display:block;overflow:visible}
+svg.chart .grid{stroke:var(--line);stroke-width:1}
+svg.chart .axis{stroke:var(--ink);stroke-width:1.5}
+svg.chart .lbl{font-size:11px;fill:var(--muted);font-family:inherit}
+svg.chart .area{fill:var(--lime);opacity:.28}
+svg.chart .line{fill:none;stroke:var(--ink);stroke-width:2.5;
+  stroke-linejoin:round;stroke-linecap:round}
+svg.chart circle{stroke:var(--card);stroke-width:2}
+.legend{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;
+  margin-top:var(--sp-3);font-size:.8rem;color:var(--ink-2)}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;
+  margin-right:6px;vertical-align:-1px}
+
+details.guide{margin-top:var(--sp-3);background:var(--card);
+  border-radius:var(--r-lg);box-shadow:var(--shadow);overflow:hidden}
+details.guide summary{cursor:pointer;list-style:none;padding:var(--sp-3) var(--sp-4);
+  font-weight:800;letter-spacing:-.01em;display:flex;justify-content:space-between;
+  align-items:center;gap:12px;min-height:56px}
+details.guide summary::-webkit-details-marker{display:none}
+details.guide summary .arw{transition:transform .25s var(--ease);flex-shrink:0}
+details.guide[open] summary .arw{transform:rotate(180deg)}
+details.guide .body{padding:0 var(--sp-4) var(--sp-4)}
+.deflist{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:var(--sp-3)}
+.deflist dt{font-weight:800;font-size:.9rem;margin-bottom:4px}
+.deflist dd{font-size:.85rem;color:var(--ink-2);margin-bottom:16px;line-height:1.5}
+.fam h4{font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);padding-bottom:8px;border-bottom:1px solid var(--line);
+  margin-bottom:10px}
+.fam li{list-style:none;display:flex;gap:10px;padding:6px 0;font-size:.85rem;
+  align-items:baseline}
+.fam code{font-weight:800;font-family:inherit;background:var(--cream-2);
+  border-radius:5px;padding:2px 7px;font-size:.78rem;flex-shrink:0;min-width:48px;
+  text-align:center}
+.famgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:var(--sp-3)}
+
+.view{display:none}
+.view.on{display:block;animation:fade .3s var(--ease)}
+@keyframes fade{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.err{display:none;background:#FBE9E6;border:1px solid #F0BDB4;color:#8C2C1B;
+  border-radius:var(--r-md);padding:13px 16px;font-size:.86rem;margin-top:var(--sp-2)}
+footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:var(--sp-6);
+  padding-top:var(--sp-3);border-top:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){
+  *,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+<div id="statusBar" aria-hidden="true"></div>
+
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 11h4M8 9v4M15.5 11.5h.01M18 13.5h.01"/>
+          <rect x="2.5" y="6.5" width="19" height="11" rx="5"/>
+        </svg>
+      </span>
+      Oyun Satış Tahminleme
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="Bölümler">
+      <button role="tab" id="tab-predict" aria-selected="true"  data-view="predict">Tahmin</button>
+      <button role="tab" id="tab-curve"   aria-selected="false" data-view="curve">Puan Etkisi</button>
+      <button role="tab" id="tab-metrics" aria-selected="false" data-view="metrics">Model Performansı</button>
+    </nav>
+
+    <div class="chip" role="status" aria-live="polite">
+      <span class="dot" id="dot"></span><span id="statusTxt">Model yükleniyor…</span>
+    </div>
+  </header>
+
+
+  <section class="view on" id="view-predict" role="tabpanel" aria-labelledby="tab-predict">
+
+    <div class="hero">
+      <p class="eyebrow" id="heroEyebrow">Makine öğrenmesi</p>
+      <h1 class="display">Yeni oyunun<br>ne kadar satacağını<br>tahmin et.</h1>
+      <p class="lede">
+        Oyunun adını, platformunu, türünü ve Metacritic puanını girin. Model hem
+        tahmini satış adedini hem de satış segmentini birlikte üretir, ikisi
+        asla çelişmez.
+      </p>
+    </div>
+
+    <div class="grid-main">
+
+
+      <div class="card">
+        <h3 class="card-t">Oyun bilgileri</h3>
+
+        <div class="field">
+          <label for="gameName">Oyun adı <span class="opt">(isteğe bağlı)</span></label>
+          <input id="gameName" placeholder="Örn: Call of Duty: Black Ops 5" autocomplete="off">
+          <p class="helper" id="franchiseHint">
+            Adından seri çıkarılır, serinin önceki oyunlarının performansı
+            tahmine katılır.
+          </p>
+        </div>
+
+        <div class="field">
+          <label for="platform">Platform</label>
+          <select id="platform"></select>
+          <div class="infobox" id="platformInfo" aria-live="polite"></div>
+        </div>
+
+        <div class="field-row">
+          <div>
+            <label for="genre">Tür</label>
+            <select id="genre"></select>
+          </div>
+          <div>
+            <label for="rating">ESRB</label>
+            <select id="rating"></select>
+          </div>
+        </div>
+        <p class="helper" id="ratingHelper"></p>
+
+        <div class="field">
+          <label for="publisher">Yayıncı</label>
+          <input id="publisher" list="publishers" placeholder="Yazmaya başlayın…" autocomplete="off">
+          <datalist id="publishers"></datalist>
+        </div>
+
+        <div class="field">
+          <label for="yearNum">Çıkış yılı</label>
+          <input type="number" id="yearNum" value="2014" step="1">
+          <p class="helper" id="yearHelper"></p>
+        </div>
+
+        <div class="field-row">
+          <div>
+            <label for="critic">Kritik puanı <span class="opt">(0-100)</span></label>
+            <input type="number" id="critic" min="0" max="100" step="1" value="80">
+          </div>
+          <div>
+            <label for="user">Kullanıcı puanı <span class="opt">(0-10)</span></label>
+            <input type="number" id="user" min="0" max="10" step="0.1" value="7.5">
+          </div>
+        </div>
+        <p class="helper">
+          Metacritic puanları. İkisi de isteğe bağlı, boş bırakırsanız model
+          bu bilgi olmadan tahmin yapar ve belirsizlik artar.
+        </p>
+
+        <button class="btn dark" id="predictBtn">
+          <span id="predictLabel">Satışı tahmin et</span>
+        </button>
+        <div class="err" id="err" role="alert"></div>
+      </div>
+
+
+      <div>
+        <div class="card" id="empty">
+          <div class="empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/>
+            </svg>
+            <p>Formu doldurup <b>Satışı tahmin et</b>'e basın. Model, tahmini
+               satış adedini ve satış segmentini birlikte döndürecek.</p>
+          </div>
+        </div>
+
+        <div class="card" id="loading" hidden>
+          <p class="eyebrow" style="display:flex;align-items:center;gap:9px">
+            <span class="spin"></span> Model çalışıyor
+          </p>
+          <div style="margin-top:24px">
+            <div class="skel skel-row" style="width:60%;height:44px"></div>
+            <div class="skel skel-row" style="width:34%"></div>
+            <div class="skel skel-row" style="width:88%;margin-top:26px"></div>
+            <div class="skel skel-row" style="width:80%"></div>
+            <div class="skel skel-row" style="width:84%"></div>
+            <div class="skel skel-row" style="width:68%"></div>
+          </div>
+        </div>
+
+        <div class="card" id="result" hidden aria-live="polite">
+          <div class="result-head">
+            <div>
+              <p class="eyebrow" style="margin-bottom:12px">Tahmini satış</p>
+              <div class="bignum"><span id="salesVal">0</span><span class="u">milyon</span></div>
+              <p class="small tnum" id="unitsVal" style="margin-top:9px"></p>
+            </div>
+            <div style="text-align:right">
+              <p class="eyebrow" style="margin-bottom:12px">Segment</p>
+              <span class="badge" id="segBadge">-</span>
+            </div>
+          </div>
+
+          <p class="small" id="segDesc" style="margin-top:20px"></p>
+
+          <div class="bars">
+            <p class="eyebrow" style="margin-bottom:16px">Segment olasılıkları</p>
+            <div id="bars"></div>
+          </div>
+
+          <div class="statgrid">
+            <div class="stat"><div class="k">Güven</div><div class="v tnum" id="confVal">-</div></div>
+            <div class="stat"><div class="k">%80 aralık</div><div class="v tnum" id="ivalVal">-</div></div>
+            <div class="stat"><div class="k">Segment aralığı</div><div class="v tnum" id="rangeVal">-</div></div>
+          </div>
+
+          <div id="driversBox" style="margin-top:32px">
+            <p class="eyebrow" style="margin-bottom:6px">Tahmini etkileyen faktörler</p>
+            <div id="drivers"></div>
+          </div>
+
+          <div id="notes" style="margin-top:20px"></div>
+        </div>
+      </div>
+    </div>
+
+    <details class="guide">
+      <summary>
+        Platform kısaltmaları ve alanlar
+        <svg class="arw" width="19" height="19" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </summary>
+      <div class="body">
+        <p class="small" style="margin-bottom:22px;max-width:64ch">
+          Veri setindeki platformlar kısa kodlarla saklanır. Aşağıda hepsinin
+          açık adı, üreticisi ve çıkış yılı, ardından form alanlarının
+          açıklamaları yer alıyor.
+        </p>
+        <div class="famgrid" id="platformGuide"></div>
+        <dl class="deflist" id="fieldGuide" style="margin-top:var(--sp-4)"></dl>
+      </div>
+    </details>
+  </section>
+
+
+  <section class="view" id="view-curve" role="tabpanel" aria-labelledby="tab-curve">
+    <div class="metrics-head">
+      <p class="eyebrow">Senaryo analizi</p>
+      <h2 class="sec">Aynı oyun,<br>farklı kritik puanı.</h2>
+      <p class="lede">
+        Tahmin sekmesindeki oyun bilgilerini sabit tutup yalnızca Metacritic
+        kritik puanını değiştirir. Sonuç, modelin en güçlü sinyalinin satışa
+        etkisidir.
+      </p>
+    </div>
+
+    <div style="max-width:520px;margin:0 auto var(--sp-4)">
+      <button class="btn" id="curveBtn">Puan etkisi eğrisini çiz</button>
+    </div>
+
+    <div class="chartbox" id="curveCard" hidden>
+      <p class="small" id="curveSub" style="margin-bottom:20px"></p>
+      <div id="chart"></div>
+      <div class="legend">
+        <span><i style="background:var(--s0)"></i>Düşük</span>
+        <span><i style="background:var(--s1)"></i>Orta</span>
+        <span><i style="background:var(--s2)"></i>Yüksek</span>
+        <span><i style="background:var(--s3)"></i>Blockbuster</span>
+      </div>
+      <div class="tblwrap" style="margin-top:var(--sp-4)"><table id="curveTable"></table></div>
+    </div>
+
+    <div class="card" id="curveEmpty">
+      <div class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 3v18h18"/><path d="M7 16l4-4 3 3 5-8"/>
+        </svg>
+        <p>Önce <b>Tahmin</b> sekmesinden oyun bilgilerini girin, sonra eğriyi
+           çizdirin.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <section class="view" id="view-metrics" role="tabpanel" aria-labelledby="tab-metrics">
+    <div class="metrics-head">
+      <p class="eyebrow">Test seti sonuçları</p>
+      <h2 class="sec">Model ne kadar<br>isabetli?</h2>
+      <p class="lede">
+        Aşağıdaki tüm sayılar, modelin eğitim sırasında hiç görmediği
+        oyunlardan hesaplandı. Görmek istediğiniz bölümü seçin.
+      </p>
+    </div>
+
+    <div class="tabs-center">
+      <div class="tabs" role="tablist" aria-label="Metrik görünümü">
+        <button role="tab" aria-selected="true"  data-metric="summary">Özet</button>
+        <button role="tab" aria-selected="false" data-metric="classes">Sınıflar</button>
+        <button role="tab" aria-selected="false" data-metric="matrix">Matris</button>
+        <button role="tab" aria-selected="false" data-metric="calib">Kalibrasyon</button>
+        <button role="tab" aria-selected="false" data-metric="protocols">Protokoller</button>
+        <button role="tab" aria-selected="false" data-metric="baseline">Kıyas</button>
+      </div>
+    </div>
+
+    <div id="metricsBody"></div>
+  </section>
+
+  <footer>
+    Veri: Kaggle, VGChartz satış verisi + Metacritic puanları &nbsp;·&nbsp;
+    LightGBM + FastAPI &nbsp;·&nbsp;
+    Bölgesel satış kolonları veri sızıntısını önlemek için modelden çıkarıldı
+  </footer>
+</div>
+
+<script>
+"use strict";
+const API = "";
+const SEG_COLORS = ["#8E8B80", "#3B7DD8", "#7B5BE0", "#E8622E"];
+
+const PLATFORMS = {
+  "2600": {n:"Atari 2600",             m:"Atari",     y:1977, t:"Ev konsolu"},
+  "NES":  {n:"Nintendo Entertainment System", m:"Nintendo", y:1983, t:"Ev konsolu"},
+  "SNES": {n:"Super Nintendo",         m:"Nintendo",  y:1990, t:"Ev konsolu"},
+  "N64":  {n:"Nintendo 64",            m:"Nintendo",  y:1996, t:"Ev konsolu"},
+  "GC":   {n:"Nintendo GameCube",      m:"Nintendo",  y:2001, t:"Ev konsolu"},
+  "Wii":  {n:"Nintendo Wii",           m:"Nintendo",  y:2006, t:"Ev konsolu"},
+  "WiiU": {n:"Nintendo Wii U",         m:"Nintendo",  y:2012, t:"Ev konsolu"},
+  "GB":   {n:"Game Boy",               m:"Nintendo",  y:1989, t:"Taşınabilir"},
+  "GBA":  {n:"Game Boy Advance",       m:"Nintendo",  y:2001, t:"Taşınabilir"},
+  "DS":   {n:"Nintendo DS",            m:"Nintendo",  y:2004, t:"Taşınabilir"},
+  "3DS":  {n:"Nintendo 3DS",           m:"Nintendo",  y:2011, t:"Taşınabilir"},
+  "PS":   {n:"PlayStation",            m:"Sony",      y:1994, t:"Ev konsolu"},
+  "PS2":  {n:"PlayStation 2",          m:"Sony",      y:2000, t:"Ev konsolu"},
+  "PS3":  {n:"PlayStation 3",          m:"Sony",      y:2006, t:"Ev konsolu"},
+  "PS4":  {n:"PlayStation 4",          m:"Sony",      y:2013, t:"Ev konsolu"},
+  "PSP":  {n:"PlayStation Portable",   m:"Sony",      y:2004, t:"Taşınabilir"},
+  "PSV":  {n:"PlayStation Vita",       m:"Sony",      y:2011, t:"Taşınabilir"},
+  "XB":   {n:"Xbox (ilk nesil)",       m:"Microsoft", y:2001, t:"Ev konsolu"},
+  "X360": {n:"Xbox 360",               m:"Microsoft", y:2005, t:"Ev konsolu"},
+  "XOne": {n:"Xbox One",               m:"Microsoft", y:2013, t:"Ev konsolu"},
+  "GEN":  {n:"Sega Genesis / Mega Drive", m:"Sega",   y:1988, t:"Ev konsolu"},
+  "SCD":  {n:"Sega CD / Mega-CD",      m:"Sega",      y:1991, t:"CD eklentisi"},
+  "SAT":  {n:"Sega Saturn",            m:"Sega",      y:1994, t:"Ev konsolu"},
+  "DC":   {n:"Sega Dreamcast",         m:"Sega",      y:1998, t:"Ev konsolu"},
+  "GG":   {n:"Sega Game Gear",         m:"Sega",      y:1990, t:"Taşınabilir"},
+  "PC":   {n:"Kişisel bilgisayar",     m:"Windows / Mac / Linux", y:null, t:"Bilgisayar"},
+  "3DO":  {n:"3DO Interactive Multiplayer", m:"Panasonic / 3DO", y:1993, t:"Ev konsolu"},
+  "NG":   {n:"Neo Geo",                m:"SNK",       y:1990, t:"Ev konsolu"},
+  "TG16": {n:"TurboGrafx-16 / PC Engine", m:"NEC",    y:1987, t:"Ev konsolu"},
+  "WS":   {n:"WonderSwan",             m:"Bandai",    y:1999, t:"Taşınabilir"},
+};
+const FAMILY_ORDER = ["Nintendo", "Sony", "Microsoft", "Sega", "Diğer"];
+const FAMILY_OF = m =>
+  ["Nintendo","Sony","Microsoft","Sega"].includes(m) ? m : "Diğer";
+
+const GENRES_TR = {
+  "Action":"Aksiyon", "Adventure":"Macera", "Fighting":"Dövüş",
+  "Misc":"Diğer", "Platform":"Platform", "Puzzle":"Bulmaca",
+  "Racing":"Yarış", "Role-Playing":"Rol yapma", "Shooter":"Nişancı",
+  "Simulation":"Simülasyon", "Sports":"Spor", "Strategy":"Strateji",
+};
+const RATING_TR = {
+  "E":"E, herkes",  "EC":"EC, erken çocuk", "E10+":"E10+, 10 yaş üstü",
+  "T":"T, genç 13+", "M":"M, olgun 17+", "AO":"AO, yetişkin 18+",
+  "RP":"RP, beklemede", "K-A":"K-A, çocuk", "Unknown":"Bilinmiyor",
+};
+const RATING_HELP = {
+  "E":"Her yaşa uygun. Veri setinde en geniş kitleye ulaşan grup.",
+  "E10+":"10 yaş ve üzeri. Aile dostu ama biraz daha olgun içerik.",
+  "T":"13 yaş ve üzeri. En kalabalık gruplardan biri.",
+  "M":"17 yaş ve üzeri. Nişancı ve aksiyon oyunlarında yaygın, ortalama satışı yüksek.",
+  "AO":"Yalnızca yetişkin. Çok az örnek var, tahmin belirsiz.",
+  "Unknown":"Sınıflandırma bilgisi yok. Eski veya küçük yayınlarda yaygın.",
+};
+const DRIVER_TR = {
+  Platform:"Platform", Genre:"Tür", Publisher:"Yayıncı", Rating:"ESRB",
+  Year_of_Release:"Çıkış yılı", Critic_Score:"Kritik puanı",
+  User_Score:"Kullanıcı puanı", Franchise:"Seri geçmişi",
+};
+const FIELD_GUIDE = [
+  ["Oyun adı", "Adından seri çıkarılır. Serinin daha önce çıkmış oyunlarının satışı tahmine katılır; bu, kritik puanından sonra en güçlü ikinci sinyaldir."],
+  ["Platform", "Oyunun çıktığı konsol veya bilgisayar. Platformun kurulu kitlesi satış tavanını belirler."],
+  ["Tür", "Aksiyon, spor, nişancı gibi oyun kategorisi."],
+  ["ESRB", "Amerika'daki yaş sınıflandırması. Hedef kitlenin genişliğini gösterir."],
+  ["Yayıncı", "Oyunu yayınlayan şirket. Dağıtım gücü ve pazarlama bütçesinin dolaylı göstergesi."],
+  ["Çıkış yılı", "Oyunun piyasaya sürüldüğü yıl. Sadece veri setinde bulunan yıllar girilebilir."],
+  ["Kritik puanı", "Metacritic'in profesyonel eleştirmen puanı (0-100). Modelin tek en güçlü sinyali: oyun kalitesinin ölçülebilir karşılığı."],
+  ["Kullanıcı puanı", "Metacritic kullanıcı puanı (0-10). Kritik puanından belirgin şekilde daha zayıf bir sinyal."],
+];
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const int = n => Math.round(Number(n)).toLocaleString("tr-TR");
+const dec = (n, d = 2) => Number(n).toLocaleString("tr-TR",
+  {minimumFractionDigits:d, maximumFractionDigits:d});
+const pct = (v, d = 1) => "%" + (v * 100).toFixed(d).replace(".", ",");
+const num3 = v => Number(v).toFixed(3).replace(".", ",");
+
+const mshort = v => {
+  v = Number(v);
+  if (v < 1) return int(v * 1000) + " bin";
+  return dec(v, 2) + "M";
+};
+
+let OPTIONS = null, METRICS = null, busy = 0;
+
+function setBusy(on, label) {
+  busy = Math.max(0, busy + (on ? 1 : -1));
+  const b = busy > 0;
+  $("statusBar").classList.toggle("on", b);
+  if (b) {
+    $("dot").className = "dot busy";
+    $("statusTxt").textContent = label || "Model çalışıyor…";
+  } else if (OPTIONS) {
+    $("dot").className = "dot ok";
+    $("statusTxt").textContent =
+      `Model hazır · ${OPTIONS.platforms.length} platform · ${int(OPTIONS.publishers.length)} yayıncı`;
+  }
+}
+
+function showError(msg) {
+  const e = $("err");
+  e.textContent = msg || "";
+  e.style.display = msg ? "block" : "none";
+}
+
+async function getJSON(p) {
+  const r = await fetch(API + p);
+  const d = await r.json();
+  if (!r.ok) throw new Error(typeof d.detail === "string" ? d.detail : "İstek başarısız");
+  return d;
+}
+async function postJSON(p, body) {
+  const r = await fetch(API + p, {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(body),
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(typeof d.detail === "string" ? d.detail : "İstek başarısız");
+  return d;
+}
+
+document.querySelectorAll("[data-view]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-view]").forEach(b =>
+      b.setAttribute("aria-selected", String(b === btn)));
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("on"));
+    $("view-" + btn.dataset.view).classList.add("on");
+    if (btn.dataset.view === "metrics") loadMetrics();
+    window.scrollTo({top:0, behavior:"smooth"});
+  });
+});
+
+async function boot() {
+  setBusy(true, "Model yükleniyor…");
+  try {
+    const h = await getJSON("/api/health");
+    if (!h.model_ready) {
+      setBusy(false);
+      $("dot").className = "dot bad";
+      $("statusTxt").textContent = "Model yüklü değil";
+      showError("Model bulunamadı. Terminalde `python -m src.train` çalıştırın.");
+      $("predictBtn").disabled = true;
+      $("curveBtn").disabled = true;
+      return;
+    }
+    OPTIONS = await getJSON("/api/options");
+
+    fillPlatforms(OPTIONS.platforms);
+    fillSelect($("genre"), OPTIONS.genres, GENRES_TR, "Shooter");
+    fillSelect($("rating"), OPTIONS.ratings, RATING_TR, "M");
+    $("publishers").innerHTML =
+      OPTIONS.publishers.map(p => `<option value="${esc(p)}"></option>`).join("");
+    $("publisher").value = "Activision";
+    $("gameName").value = "Call of Duty: Black Ops 5";
+
+    const [lo, hi] = OPTIONS.year_range;
+    $("yearNum").min = lo; $("yearNum").max = hi;
+    if (parseInt($("yearNum").value, 10) > hi) $("yearNum").value = hi;
+
+    $("heroEyebrow").textContent = "Makine öğrenmesi"
+      + (OPTIONS.rows ? ` · ${int(OPTIONS.rows)} oyun` : "")
+      + (OPTIONS.n_franchises ? ` · ${int(OPTIONS.n_franchises)} seri` : "");
+
+    buildPlatformGuide(OPTIONS.platforms);
+    $("fieldGuide").innerHTML = FIELD_GUIDE.map(([t, d]) =>
+      `<div><dt>${esc(t)}</dt><dd>${esc(d)}</dd></div>`).join("");
+
+    updatePlatformInfo();
+    updateRatingHelp();
+    updateYearHelper();
+    refreshFranchise();
+  } catch (e) {
+    $("dot").className = "dot bad";
+    $("statusTxt").textContent = "Sunucuya bağlanılamadı";
+    showError("API'ye ulaşılamadı. `uvicorn api.main:app --reload` çalışıyor mu?");
+  } finally {
+    setBusy(false);
+  }
+}
+
+function fillSelect(sel, values, tr, preferred) {
+  sel.innerHTML = values.map(v =>
+    `<option value="${esc(v)}">${esc(tr[v] || v)}</option>`).join("");
+  if (values.includes(preferred)) sel.value = preferred;
+}
+
+function fillPlatforms(codes) {
+  const groups = {};
+  codes.forEach(c => {
+    const i = PLATFORMS[c];
+    const fam = i ? FAMILY_OF(i.m) : "Diğer";
+    (groups[fam] = groups[fam] || []).push(c);
+  });
+  $("platform").innerHTML = FAMILY_ORDER.filter(f => groups[f]).map(fam => {
+    const opts = groups[fam]
+      .sort((a, b) => (PLATFORMS[a]?.y || 0) - (PLATFORMS[b]?.y || 0))
+      .map(c => {
+        const i = PLATFORMS[c];
+        return `<option value="${esc(c)}">${esc(c)} · ${esc(i ? i.n : c)}</option>`;
+      }).join("");
+    return `<optgroup label="${esc(fam)}">${opts}</optgroup>`;
+  }).join("");
+  if (codes.includes("PS4")) $("platform").value = "PS4";
+}
+
+function updatePlatformInfo() {
+  const code = $("platform").value;
+  const i = PLATFORMS[code];
+  const box = $("platformInfo");
+  box.innerHTML = !i
+    ? `<span class="t">${esc(code)}</span>
+       <span class="meta">Bu platform için açıklama kaydı yok.</span>`
+    : `<span class="t">${esc(i.n)}</span>
+       <span class="meta">${esc(i.m)}${i.y ? ` · ${i.y} çıkışlı` : ""} · ${esc(i.t)}</span>`;
+}
+$("platform").addEventListener("change", updatePlatformInfo);
+
+function updateRatingHelp() {
+  $("ratingHelper").textContent = RATING_HELP[$("rating").value] || "";
+}
+$("rating").addEventListener("change", updateRatingHelp);
+
+function buildPlatformGuide(codes) {
+  const groups = {};
+  codes.forEach(c => {
+    const i = PLATFORMS[c];
+    const fam = i ? FAMILY_OF(i.m) : "Diğer";
+    (groups[fam] = groups[fam] || []).push(c);
+  });
+  $("platformGuide").innerHTML = FAMILY_ORDER.filter(f => groups[f]).map(fam => `
+    <div class="fam">
+      <h4>${esc(fam)}</h4>
+      <ul>${groups[fam]
+        .sort((a, b) => (PLATFORMS[a]?.y || 0) - (PLATFORMS[b]?.y || 0))
+        .map(c => {
+          const i = PLATFORMS[c];
+          return `<li><code>${esc(c)}</code><span>${esc(i ? i.n : c)}${
+            i && i.y ? `<span class="small"> · ${i.y} · ${esc(i.t)}</span>` : ""
+          }</span></li>`;
+        }).join("")}</ul>
+    </div>`).join("");
+}
+
+function yearIsValid() {
+  if (!OPTIONS) return true;
+  const y = parseInt($("yearNum").value, 10);
+  const [lo, hi] = OPTIONS.year_range;
+  return Number.isInteger(y) && y >= lo && y <= hi;
+}
+
+function updateYearHelper() {
+  const el = $("yearHelper");
+  if (!OPTIONS) { el.textContent = ""; return; }
+  const [lo, hi] = OPTIONS.year_range;
+  const bad = !yearIsValid();
+
+  $("yearNum").setAttribute("aria-invalid", String(bad));
+  $("predictBtn").disabled = bad;
+  $("curveBtn").disabled = bad;
+
+  el.innerHTML = bad
+    ? `<b style="color:#C0392B">Geçersiz yıl.</b> Veri seti yalnızca <b>${lo}</b>
+       ile <b>${hi}</b> arası oyunları içeriyor, bu aralıkta bir değer girin.`
+    : `Veri setinde ${lo} ile ${hi} arası oyunlar var.`;
+}
+$("yearNum").addEventListener("input", () => { updateYearHelper(); refreshFranchise(); });
+
+const DEFAULT_HINT =
+  "Adından seri çıkarılır, serinin önceki oyunlarının performansı tahmine katılır.";
+let hintTimer = null;
+
+function refreshFranchise() {
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(async () => {
+    const nm = $("gameName").value.trim();
+    const el = $("franchiseHint");
+    if (!nm || !yearIsValid()) { el.innerHTML = DEFAULT_HINT; return; }
+    try {
+      const y = parseInt($("yearNum").value, 10);
+      const f = await getJSON(
+        `/api/franchise?name=${encodeURIComponent(nm)}&year=${y}`);
+      el.innerHTML = f.prior_games > 0
+        ? `Seri: <b>${esc(f.franchise_key)}</b> · ${y} öncesinde
+           <b>${f.prior_games} oyun</b>, ortalama ${mshort(f.prior_mean_millions)},
+           en iyi ${mshort(f.prior_best_millions)} (son çıkış
+           ${f.years_since_last} yıl önce).`
+        : `Seri: <b>${esc(f.franchise_key)}</b> · ${y} öncesinde kayıt yok,
+           <b>yeni IP</b> olarak değerlendirilecek.`;
+    } catch { el.innerHTML = DEFAULT_HINT; }
+  }, 350);
+}
+$("gameName").addEventListener("input", refreshFranchise);
+
+function payload() {
+  const opt = id => {
+    const v = parseFloat($(id).value);
+    return Number.isFinite(v) ? v : null;
+  };
+  return {
+    name: $("gameName").value.trim(),
+    platform: $("platform").value,
+    genre: $("genre").value,
+    publisher: $("publisher").value.trim() || "Unknown",
+    year: parseInt($("yearNum").value, 10),
+    rating: $("rating").value,
+    critic_score: opt("critic"),
+    user_score: opt("user"),
+  };
+}
+
+async function predict() {
+  const btn = $("predictBtn");
+  btn.disabled = true;
+  $("predictLabel").textContent = "Hesaplanıyor…";
+  btn.insertAdjacentHTML("afterbegin", '<span class="spin"></span>');
+  showError("");
+  setBusy(true, "Model çalışıyor…");
+  $("empty").hidden = true;
+  $("result").hidden = true;
+  $("loading").hidden = false;
+
+  try {
+    render(await postJSON("/api/predict", payload()));
+    $("loading").hidden = true;
+  } catch (e) {
+    $("loading").hidden = true;
+    $("empty").hidden = false;
+    showError(e.message);
+  } finally {
+    btn.disabled = !yearIsValid();
+    btn.querySelector(".spin")?.remove();
+    $("predictLabel").textContent = "Satışı tahmin et";
+    setBusy(false);
+  }
+}
+
+function render(r) {
+  $("result").hidden = false;
+  $("salesVal").textContent = num3(r.predicted_sales);
+  $("unitsVal").textContent = "≈ " + int(r.predicted_units) + " adet";
+
+  const b = $("segBadge");
+  b.textContent = r.segment;
+  b.dataset.seg = r.segment_index;
+  $("segDesc").textContent = r.segment_description;
+
+  const [lo, hi] = r.segment_range;
+  $("rangeVal").textContent = hi === null
+    ? mshort(lo) + " ve üzeri" : mshort(lo) + " - " + mshort(hi);
+  $("confVal").textContent = pct(r.confidence, 0);
+  $("ivalVal").textContent = mshort(r.interval[0]) + " - " + mshort(r.interval[1]);
+
+  $("bars").innerHTML = Object.entries(r.segment_probabilities).map(([k, v], i) => `
+    <div class="bar ${i === r.segment_index ? "win" : ""}">
+      <span class="nm">${esc(k)}</span>
+      <span class="track"><span class="fill" data-w="${(v * 100).toFixed(1)}"
+        style="background:${SEG_COLORS[i]}"></span></span>
+      <span class="pct tnum">${pct(v)}</span>
+    </div>`).join("");
+  requestAnimationFrame(() => document.querySelectorAll("#bars .fill")
+    .forEach(el => el.style.width = el.dataset.w + "%"));
+
+  const box = $("driversBox");
+  if (r.drivers && r.drivers.length) {
+    box.style.display = "block";
+    $("drivers").innerHTML = r.drivers.map(d => {
+      const up = d.effect_log >= 0;
+      const arrow = up
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>';
+      let val = d.value;
+      if (d.kind === "num") {
+        if (d.feature === "Year_of_Release") val = String(Math.round(val));
+        else if (d.feature === "Critic_Score") val = int(val) + " / 100";
+        else if (d.feature === "User_Score") val = dec(val, 1) + " / 10";
+        else val = dec(val, 1);
+      } else {
+        if (d.feature === "Genre") val = GENRES_TR[val] || val;
+        if (d.feature === "Rating") val = RATING_TR[val] || val;
+      }
+      return `<div class="drv">
+        <span class="nm">${esc(DRIVER_TR[d.feature] || d.feature)}</span>
+        <span class="vl">${esc(val)}</span>
+        <span class="ef ${up ? "up" : "down"} tnum">${arrow}${
+          Math.abs(d.effect_log).toFixed(2).replace(".", ",")}</span>
+      </div>`;
+    }).join("");
+  } else {
+    box.style.display = "none";
+  }
+
+  const info = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.01"/></svg>';
+  $("notes").innerHTML = (r.notes || [])
+    .map(n => `<div class="note">${info}<span>${esc(n)}</span></div>`).join("");
+}
+
+$("predictBtn").addEventListener("click", predict);
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && $("view-predict").classList.contains("on")
+      && !$("predictBtn").disabled) predict();
+});
+
+async function drawCurve() {
+  const btn = $("curveBtn");
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.innerHTML = '<span class="spin"></span>Model çalışıyor…';
+  showError("");
+  setBusy(true, "Puan etkisi hesaplanıyor…");
+
+  try {
+    const p = payload();
+    const q = new URLSearchParams({
+      name:p.name, platform:p.platform, genre:p.genre, publisher:p.publisher,
+      year:p.year, rating:p.rating,
+    });
+    if (p.user_score !== null) q.set("user_score", p.user_score);
+    const d = await getJSON("/api/critic-curve?" + q.toString());
+    chart(d.points);
+
+    $("curveSub").textContent =
+      `${p.name || "(isimsiz)"} · ${p.platform} · ` +
+      `${GENRES_TR[p.genre] || p.genre} · ${p.publisher} · ${p.year}. ` +
+      "Yalnızca kritik puanı değişiyor.";
+
+    const rows = [...d.points].reverse();
+    $("curveTable").innerHTML = `
+      <thead><tr><th>Kritik puanı</th><th class="num">Tahmini satış</th>
+        <th>Segment</th><th class="num">Önceki adıma göre</th></tr></thead>
+      <tbody>${rows.map((x, i) => {
+        const prev = rows[i + 1];
+        const diff = prev && prev.sales > 0 ? (x.sales - prev.sales) / prev.sales : null;
+        return `<tr>
+          <td><b>${x.critic_score}</b></td>
+          <td class="num">${num3(x.sales)}M</td>
+          <td><span class="pill-s" data-seg="${x.segment_index}">${esc(x.segment)}</span></td>
+          <td class="num ${diff === null ? "" : (diff >= 0 ? "up" : "down")}">${
+            diff === null ? "-" : (diff >= 0 ? "+" : "-") + pct(Math.abs(diff))}</td>
+        </tr>`;
+      }).join("")}</tbody>`;
+
+    $("curveEmpty").hidden = true;
+    $("curveCard").hidden = false;
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    btn.disabled = !yearIsValid();
+    btn.textContent = old;
+    setBusy(false);
+  }
+}
+$("curveBtn").addEventListener("click", drawCurve);
+
+function chart(points) {
+  const W = 900, H = 340, mL = 76, mR = 18, mT = 18, mB = 42;
+  const iw = W - mL - mR, ih = H - mT - mB;
+  const xs = points.map(p => p.critic_score);
+  const ys = points.map(p => p.sales);
+
+  const niceStep = raw => {
+    const mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+    const n = (raw || 1) / mag;
+    const mult = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+    return mult * mag;
+  };
+  const ticks = 5;
+  const step = niceStep(Math.max(...ys) / ticks);
+  const yMax = step * Math.ceil(Math.max(...ys) / step) || 1;
+
+  const X = v => mL + ((v - xs[0]) / (xs[xs.length - 1] - xs[0])) * iw;
+  const Y = v => mT + ih - (v / yMax) * ih;
+
+  const axisLbl = v => {
+    if (v === 0) return "0";
+    if (v < 1) return int(v * 1000) + " bin";
+    return (Number.isInteger(v) ? int(v) : dec(v, 1)) + "M";
+  };
+  const grid = Array.from({length:Math.round(yMax / step) + 1}, (_, i) => {
+    const v = i * step;
+    return `<line class="grid" x1="${mL}" y1="${Y(v)}" x2="${W - mR}" y2="${Y(v)}"/>
+      <text class="lbl" x="${mL - 10}" y="${Y(v) + 4}" text-anchor="end">${
+        axisLbl(v)}</text>`;
+  }).join("");
+
+  const xlabels = xs.filter((_, i) => i % 2 === 0).map(v =>
+    `<text class="lbl" x="${X(v)}" y="${H - mB + 20}" text-anchor="middle">${v}</text>`
+  ).join("");
+
+  const line = points.map((p, i) =>
+    `${i ? "L" : "M"}${X(p.critic_score).toFixed(1)},${Y(p.sales).toFixed(1)}`).join(" ");
+  const area = `${line} L${X(xs[xs.length - 1])},${Y(0)} L${X(xs[0])},${Y(0)} Z`;
+  const dots = points.map(p =>
+    `<circle cx="${X(p.critic_score).toFixed(1)}" cy="${Y(p.sales).toFixed(1)}" r="4.5"
+       fill="${SEG_COLORS[p.segment_index]}">
+       <title>Kritik ${p.critic_score}: ${num3(p.sales)}M (${p.segment})</title></circle>`
+  ).join("");
+
+  $("chart").innerHTML = `
+    <svg class="chart" viewBox="0 0 ${W} ${H}" role="img"
+         aria-label="Kritik puanına göre tahmini satış eğrisi">
+      ${grid}
+      <path class="area" d="${area}"/>
+      <path class="line" d="${line}"/>
+      ${dots}
+      <line class="axis" x1="${mL}" y1="${mT}" x2="${mL}" y2="${mT + ih}"/>
+      <line class="axis" x1="${mL}" y1="${mT + ih}" x2="${W - mR}" y2="${mT + ih}"/>
+      ${xlabels}
+      <text class="lbl" x="${mL}" y="${mT - 4}">Tahmini satış (milyon adet)</text>
+      <text class="lbl" x="${W - mR}" y="${H - 6}" text-anchor="end">Metacritic kritik puanı</text>
+    </svg>`;
+}
+
+let metricView = "summary";
+document.querySelectorAll("[data-metric]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-metric]").forEach(b =>
+      b.setAttribute("aria-selected", String(b === btn)));
+    metricView = btn.dataset.metric;
+    renderMetrics();
+  });
+});
+
+async function loadMetrics() {
+  if (METRICS) { renderMetrics(); return; }
+  $("metricsBody").innerHTML =
+    `<div class="kpis">${"<div class='kpi'><div class='skel' style='height:52px'></div></div>".repeat(4)}</div>`;
+  setBusy(true, "Metrikler yükleniyor…");
+  try {
+    METRICS = await getJSON("/api/metrics");
+    renderMetrics();
+  } catch (e) {
+    $("metricsBody").innerHTML =
+      `<div class="card"><div class="empty"><p>Metrikler alınamadı: ${esc(e.message)}</p></div></div>`;
+  } finally {
+    setBusy(false);
+  }
+}
+
+const kpi = (v, k, sub, hl) =>
+  `<div class="kpi${hl ? " hl" : ""}"><div class="v">${v}</div>
+   <div class="k">${k}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</div>`;
+const card = inner => `<div class="card" style="max-width:840px;margin:0 auto">${inner}</div>`;
+
+function renderMetrics() {
+  const m = METRICS;
+  if (!m) return;
+  const cls = m.classification, reg = m.regression.after_fusion;
+  const labels = OPTIONS ? OPTIONS.segments.map(s => s.label)
+                         : ["Düşük","Orta","Yüksek","Blockbuster"];
+  let html = "";
+
+  if (metricView === "summary") {
+    html = `
+      <div class="kpis">
+        ${kpi(pct(cls.accuracy, 1), "Segment doğruluğu", "tam isabet", true)}
+        ${kpi(num3(cls.macro_f1), "Macro-F1", "dengesiz sınıflara adil metrik")}
+        ${kpi(pct(cls.adjacent_accuracy, 1), "±1 segment", "doğru ya da komşu")}
+        ${kpi(num3(reg.R2_log), "R² (log ölçek)", "satış tahmini")}
+      </div>
+      ${card(`
+        <div class="guarantee">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+          <div><b>Tutarlılık: ${m.consistency.violations_after_fusion} ihlal.</b>
+            ${int(m.dataset.split.test)} test oyununun tamamında satış tahmini,
+            ilan edilen segmentin içinde kaldı. Aynı iki model <i>füzyonsuz</i>
+            kullanılsaydı çelişki oranı
+            <b>${pct(m.consistency.naive_two_model_conflict_rate, 1)}</b> olurdu.</div>
+        </div>
+        <div class="statgrid" style="margin-top:22px">
+          <div class="stat"><div class="k">Medyan sapma</div>
+            <div class="v tnum">${pct(reg.MedAPE / 100, 1)}</div></div>
+          <div class="stat"><div class="k">Ortalama hata</div>
+            <div class="v tnum">${num3(reg.MAE)}M</div></div>
+          <div class="stat"><div class="k">Çapraz doğrulama R²</div>
+            <div class="v tnum">${num3(m.cross_validation.mean.R2_log)}</div></div>
+        </div>
+        <p class="small" style="margin-top:20px">
+          Veri: ${int(m.dataset.rows_clean)} oyun, ${m.dataset.n_platforms} platform,
+          ${int(m.dataset.n_publishers)} yayıncı, ${int(m.dataset.n_franchises)} seri,
+          ${m.dataset.year_range[0]} ile ${m.dataset.year_range[1]} arası.
+          Oyunların %${((m.dataset.rows_with_critic_score / m.dataset.rows_clean) * 100).toFixed(0)}'inde
+          Metacritic kritik puanı var. Karşılaştırma için: her oyuna en kalabalık
+          segmenti söyleyen naif bir tahminci
+          ${pct(m.baselines.dummy_classifier.accuracy, 1)} doğruluk alır.
+        </p>`)}`;
+  }
+
+  else if (metricView === "classes") {
+    html = card(`
+      <h3 class="card-t" style="margin-bottom:6px">Segment bazında başarı</h3>
+      <p class="small" style="margin-bottom:20px">
+        <b>Precision:</b> "Yüksek" dediklerinin kaçı gerçekten Yüksek.
+        <b>Recall:</b> gerçek Yüksek oyunların kaçını yakaladı.
+      </p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Segment</th><th>Satış aralığı</th><th class="num">Oyun</th>
+          <th class="num">Precision</th><th class="num">Recall</th>
+          <th class="num">F1</th></tr></thead>
+        <tbody>${labels.map((l, i) => {
+          const r = cls.report[l];
+          const s = OPTIONS ? OPTIONS.segments[i] : null;
+          const rng = !s ? "" : (s.max === null ? mshort(s.min) + " +"
+                                                : mshort(s.min) + " - " + mshort(s.max));
+          return `<tr>
+            <td><span class="pill-s" data-seg="${i}">${esc(l)}</span></td>
+            <td class="small">${rng}</td>
+            <td class="num">${int(r.support)}</td>
+            <td class="num">${num3(r.precision)}</td>
+            <td class="num">${num3(r.recall)}</td>
+            <td class="num"><b>${num3(r["f1-score"])}</b></td></tr>`;
+        }).join("")}</tbody>
+      </table></div>`);
+  }
+
+  else if (metricView === "matrix") {
+    html = card(`
+      <h3 class="card-t" style="margin-bottom:6px">Karışıklık matrisi</h3>
+      <p class="small" style="margin-bottom:20px">
+        Satır gerçek segment, sütun modelin tahmini. Köşegen (yeşil) doğru
+        tahminler. Hataların köşegenin hemen yanında toplanması modelin
+        sıralamayı öğrendiğini gösterir: ±1 doğruluk
+        ${pct(cls.adjacent_accuracy, 1)}.
+      </p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Gerçek / Tahmin</th>
+          ${labels.map(l => `<th class="num">${esc(l)}</th>`).join("")}</tr></thead>
+        <tbody>${cls.confusion_matrix.map((row, i) => `
+          <tr><td><span class="pill-s" data-seg="${i}">${esc(labels[i])}</span></td>
+          ${row.map((v, j) => `<td class="num tnum${
+            i === j ? " cm-diag" : ""}">${int(v)}</td>`).join("")}</tr>`).join("")}
+        </tbody></table></div>`);
+  }
+
+  else if (metricView === "calib") {
+    const c = m.calibration;
+    html = `
+      <div class="kpis" style="max-width:620px;margin:0 auto var(--sp-3)">
+        ${kpi((c.overall_gap >= 0 ? "+" : "-") + pct(Math.abs(c.overall_gap), 1),
+              "Genel sapma", "ilan edilen ile gerçekleşen arası", true)}
+        ${kpi(pct(c.max_abs_gap, 1), "En kötü kova", "hiçbir aralıkta daha fazla değil")}
+      </div>
+      ${card(`
+        <h3 class="card-t" style="margin-bottom:6px">Güven kalibrasyonu</h3>
+        <p class="small" style="margin-bottom:20px">
+          Model "%70 eminim" dediğinde o tahminlerin gerçekten yaklaşık %70'i
+          doğru mu? Kalibrasyonu bozuk bir model karar desteği için kullanılamaz.
+        </p>
+        <div class="tblwrap"><table>
+          <thead><tr><th>Modelin dediği</th><th class="num">Oyun</th>
+            <th class="num">İlan edilen</th><th class="num">Gerçekleşen</th>
+            <th class="num">Fark</th></tr></thead>
+          <tbody>${c.bins.map(b => `<tr>
+            <td>${esc(b.bin)}</td><td class="num">${int(b.n)}</td>
+            <td class="num">${pct(b.stated)}</td>
+            <td class="num">${pct(b.observed)}</td>
+            <td class="num ${b.gap >= 0 ? "up" : "down"}"><b>${
+              (b.gap >= 0 ? "+" : "-") + pct(Math.abs(b.gap))}</b></td>
+          </tr>`).join("")}</tbody>
+        </table></div>
+        <p class="small" style="margin-top:18px">
+          Pozitif fark, modelin ilan ettiğinden daha iyi çıktığı anlamına gelir.
+        </p>`)}`;
+  }
+
+  else if (metricView === "protocols") {
+    const R = m.protocols.random, K = m.protocols.chronological;
+    const row = (lbl, a, b) => `<tr><td>${lbl}</td>
+      <td class="num">${a}</td><td class="num">${b}</td></tr>`;
+    html = card(`
+      <h3 class="card-t" style="margin-bottom:6px">İki değerlendirme protokolü</h3>
+      <p class="small" style="margin-bottom:20px">
+        <b>Rastgele bölme</b> sınıf dengesini korur ve düşük varyanslı ölçüm
+        verir. <b>Kronolojik bölme</b> modeli 2011 öncesiyle eğitip 2014 sonrası
+        oyunlarda test eder; gerçek kullanım senaryosu "gelecekteki bir oyunu
+        tahmin et" olduğu için daha dürüst ve daha zorlu bir ölçümdür.
+      </p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Metrik</th><th class="num">Rastgele</th>
+          <th class="num">Kronolojik</th></tr></thead>
+        <tbody>
+          ${row("Test oyunu sayısı", int(R.split.test), int(K.split.test))}
+          ${row("Segment doğruluğu", pct(R.classification.accuracy, 1),
+                pct(K.classification.accuracy, 1))}
+          ${row("Macro-F1", num3(R.classification.macro_f1),
+                num3(K.classification.macro_f1))}
+          ${row("±1 segment", pct(R.classification.adjacent_accuracy, 1),
+                pct(K.classification.adjacent_accuracy, 1))}
+          ${row("R² (log)", num3(R.regression.after_fusion.R2_log),
+                num3(K.regression.after_fusion.R2_log))}
+          ${row("Medyan sapma", pct(R.regression.after_fusion.MedAPE / 100, 1),
+                pct(K.regression.after_fusion.MedAPE / 100, 1))}
+          ${row("Füzyonsuz çelişki oranı",
+                pct(R.consistency.naive_two_model_conflict_rate, 1),
+                pct(K.consistency.naive_two_model_conflict_rate, 1))}
+        </tbody>
+      </table></div>
+      <p class="small" style="margin-top:18px">
+        Raporlanacak asıl sayı kronolojik protokoldür. Aradaki fark, rastgele
+        bölmenin doğal iyimserliğidir: aynı serinin bir oyunu eğitimde diğeri
+        testte olduğunda model seriyi kısmen ezberleyebiliyor.
+      </p>`);
+  }
+
+  else if (metricView === "baseline") {
+    const b = m.baselines;
+    const row = (name, r2, med, strong) => `<tr>
+      <td>${strong ? `<b>${name}</b>` : name}</td>
+      <td class="num">${strong ? `<b>${r2}</b>` : r2}</td>
+      <td class="num">${strong ? `<b>${med}</b>` : med}</td></tr>`;
+    html = card(`
+      <h3 class="card-t" style="margin-bottom:6px">Karşılaştırma tabanı</h3>
+      <p class="small" style="margin-bottom:20px">
+        Modelin gerçekten değer katıp katmadığını görmek için basit
+        yaklaşımlarla kıyas. R² log ölçekte, çünkü satış dağılımı aşırı çarpık:
+        birkaç blockbuster doğrusal R²'yi domine eder.
+      </p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Yaklaşım</th><th class="num">R² (log)</th>
+          <th class="num">Medyan sapma</th></tr></thead>
+        <tbody>
+          ${row("Medyan satış (naif)", num3(b.dummy_median_regressor.R2_log),
+                pct(b.dummy_median_regressor.MedAPE / 100, 1))}
+          ${row("Ridge + one-hot", num3(b.ridge_onehot_regressor.R2_log),
+                pct(b.ridge_onehot_regressor.MedAPE / 100, 1))}
+          ${row("LightGBM + füzyon", num3(reg.R2_log),
+                pct(reg.MedAPE / 100, 1), true)}
+        </tbody>
+      </table></div>
+      <p class="small" style="margin-top:18px">
+        Sınıflandırma tarafında naif taban (her oyuna "Orta" demek)
+        ${pct(b.dummy_classifier.accuracy, 1)} doğruluk ve
+        ${num3(b.dummy_classifier.macro_f1)} macro-F1 alıyor. Model
+        ${pct(cls.accuracy, 1)} ve ${num3(cls.macro_f1)} veriyor.
+      </p>`);
+  }
+
+  $("metricsBody").innerHTML = html;
+}
+
+boot();
+</script>
+</body>
+</html>

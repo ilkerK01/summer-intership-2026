@@ -1,0 +1,15 @@
+pandas>=2.0
+numpy>=1.26
+scipy>=1.11
+scikit-learn>=1.4
+lightgbm>=4.3
+joblib>=1.3
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+
+# Veri indirme (opsiyonel, CSV'yi elle koyarsaniz gerekmez)
+kagglehub>=0.3
+
+# Test
+pytest>=8.0
